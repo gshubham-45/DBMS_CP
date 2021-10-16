@@ -7,6 +7,7 @@ import java.util.Scanner;
 
 public class Main {
     private static void create_table(String[] tokens){
+        //create table emp(name,char,roll,int);
         String[] data=tokens[2].split("\\(");
         String resString=data[0];
         String[] attributes=data[1].split(",");
@@ -22,7 +23,7 @@ public class Main {
 
         try{
             Writer output = new BufferedWriter(new FileWriter("src\\db\\schema.txt", true));
-            File newTable=new File("src\\db\\"+data[0]+".txt");
+            File newTable=new File("src\\tables\\"+data[0]+".txt");
             boolean status=newTable.createNewFile();
             if(status){
                 output.write(resString+"\r\n");
