@@ -1,1 +1,2 @@
 emp#name#char#roll#int
+dept#name#char#roll#int
