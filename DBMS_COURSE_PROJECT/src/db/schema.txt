@@ -1,2 +1,1 @@
-emp#name#char#roll#int
-dept#name#char#roll#int
+student#roll#int#check(roll>0)$name#char(10)$primary key(roll)$foreign key name references emp(name)
