@@ -1,1 +1,1 @@
-student#roll#int#check(roll>0)$name#char(10)$primary key(roll)$foreign key name references emp(name)
+student$roll#int#check(roll>0)$name#char(10)$primary key(roll)$foreign key(name) references emp(name)
