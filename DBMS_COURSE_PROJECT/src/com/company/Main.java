@@ -160,7 +160,42 @@ public class Main {
     }
 
     private static void help_command(String[] tokens) {
-
+        if(tokens.length==3 && tokens[1].equals("create") && tokens[2].equals("table")){
+            System.out.println("This query is used to create a new table by specifying attribute name,attribute data type and optional constraints like primary key and foreign key.");
+            System.out.println("Syntax of CREATE TABLE :");
+            System.out.println("CREATE TABLE table_name ( attribute_1 attribute1_type CHECK (constraint1),\n" +
+                    "attribute_2 attribute2_type, …, PRIMARY KEY ( attribute_1, attribute_2 ),\n" +
+                    "FOREIGN KEY ( attribute_y ) REFERENCES table_x ( attribute_t ), FOREIGN\n" +
+                    "KEY ( attribute_w ) REFERENCES table_y ( attribute_z )… );");
+        }
+        else if(tokens.length==3 && tokens[1].equals("drop") && tokens[2].equals("table")){
+            System.out.println("DROP is used to delete a whole database or just a table");
+            System.out.println("Syntax of DROP TABLE :");
+            System.out.println("DROP TABLE table_name;");
+        }
+        else if(tokens.length==2 && tokens[1].equals("select")){
+            System.out.println("SELECT is used to select certain columns of table using different conditions specified using WHERE clause.");
+            System.out.println("Syntax of SELECT :");
+            System.out.println("SELECT attribute_list FROM table_list WHERE condition_list;");
+        }
+        else if(tokens.length==2 && tokens[1].equals("insert")){
+            System.out.println("INSERT INTO clause is used to insert tuples in specified table.");
+            System.out.println("Syntax of INSERT :");
+            System.out.println("INSERT INTO table_name VALUES ( val1, val2, … );");
+        }
+        else if(tokens.length==2 && tokens[1].equals("delete")){
+            System.out.println("DELETE clause is used to delete tuples from table based on some condition");
+            System.out.println("Syntax of DELETE :");
+            System.out.println("DELETE FROM table_name WHERE condition_list;");
+        }
+        else if(tokens.length==2 && tokens[1].equals("update")){
+            System.out.println("UPDATE clause is used to update or modify particular attribute value based on some condition.");
+            System.out.println("Syntax of UPDATE :");
+            System.out.println("UPDATE table_name SET attr1 = val1, attr2 = val2… WHERE condition_list;");
+        }
+        else{
+            System.out.println("Query is invalid!!");
+        }
     }
 
     public static void main(String[] args) {
