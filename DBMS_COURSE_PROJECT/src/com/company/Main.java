@@ -103,7 +103,7 @@ public class Main {
             for(String st:schemaTokens){
                 if(st.contains("primary key")){
                     st=st.substring(0,st.length()-1);
-                    String[] primary=((st.split("\\("))[1]).split(",");   //Putting primary keys in a array
+                    String[] primary=((st.split("\\("))[1]).split("#");   //Putting primary keys in a array
                     for(String p:primary)       //adding primary keys to a set
                         pkSet.add(p);
                 }
@@ -123,7 +123,7 @@ public class Main {
                 String pk="";
                 String fk=foreign.getOrDefault(colName,"");
                 if(attriTokens.length==3){
-                    constraint=(attriTokens[2].split("[\\(\\)]"))[0];
+                    constraint=(attriTokens[2].split("[\\(\\)]"))[1];
                 }
                 if(pkSet.contains(colName))
                     pk="primary key";
@@ -198,7 +198,37 @@ public class Main {
         }
     }
 
-    public static void main(String[] args) {
+    private static void drop_table(String[] tokens) throws IOException {
+        File table=new File("src\\tables\\"+tokens[2]+".txt");
+        if(!table.exists()){
+            System.out.println("Table not found!");
+        }
+        else{
+            File tempFile=new File("src\\db\\"+"temp.txt");
+            File schemaFile=new File("src\\db\\"+"schema.txt");
+            tempFile.createNewFile();       //creating temporary file
+            BufferedReader br = new BufferedReader(new FileReader(schemaFile));
+            PrintWriter pw = new PrintWriter(new FileWriter(tempFile));
+            String line=null;
+
+            while ((line = br.readLine()) != null) {        //read from schema file and print in temp file
+                String tn=(line.split("\\$"))[0];
+                if (!tn.equals(tokens[2])) {    //if schema of required table is obtained don't write it in new file
+                    pw.println(line);
+                    pw.flush();
+                }
+            }
+            pw.close();
+            br.close();
+
+            table.delete();     //delete table file
+            schemaFile.delete();    //delete original file
+            tempFile.renameTo(schemaFile);      //rename temp file to schema.txt
+            System.out.println("Table dropped successfully");
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
         Scanner sc=new Scanner(System.in);
         String query;
         while(true){
@@ -240,6 +270,14 @@ public class Main {
             }
             else if(tokens[0].equals("help")){
                 help_command(tokens);
+            }
+            else if(tokens.length==3 && tokens[0].equals("drop") && tokens[1].equals("table")){
+                try{
+                    drop_table(tokens);
+                }
+                catch (IOException e){
+                    e.printStackTrace();
+                }
             }
             else{
                 System.out.println("Invalid Query");
