@@ -7,40 +7,33 @@ import java.util.*;
 
 public class Main {
     private static void create_table(String[] tokens,String query){
-        //create table student(roll,int,check(roll>0),name,char(10),PRIMARY KEY(roll),FOREIGN KEY name REFERENCES emp(name));
+        //create table student(roll int check(roll>0),name char(10),PRIMARY KEY(roll,name),FOREIGN KEY(name) REFERENCES emp(name));
+        query=query.substring(0,query.length()-1);
         String[] data=query.split("\\(",2);
         String tableName=(data[0].split(" "))[2];
-        String resString=tableName+"$";
+        String resString=tableName;
         String[] attributes=data[1].split(",");
+
         int n=attributes.length;
         for(int i=0;i<n;i++){
-            if(i==n-1){
-                if(attributes[i].contains("primary") || attributes[i].contains("foreign")){
-                    if(resString.charAt(resString.length()-1)!='$')
-                        resString+="$"+attributes[n-1].substring(0,attributes[n-1].length()-1);
-                    else
-                        resString+=attributes[n-1].substring(0,attributes[n-1].length()-1);
+            if(attributes[i].contains("foreign key")){
+                resString+="$"+attributes[i];
+            }
+            else if(attributes[i].contains("primary key")) {
+                boolean flag = false;
+                while (!attributes[i].contains(")")) {
+                    resString += "$" + attributes[i] + "#";
+                    flag = true;
+                    i++;
                 }
+                if (flag == true)
+                    resString += attributes[i];
                 else
-                    resString+="#"+attributes[n-1].substring(0,attributes[n-1].length()-1);
+                    resString += "$" + attributes[i];
             }
             else{
-                if(attributes[i].contains("check")){
-                    resString+="#"+attributes[i]+"$";
-                }
-                else if(attributes[i].contains("primary") || attributes[i].contains("foreign")){
-                    if(resString.charAt(resString.length()-1)!='$')
-                        resString+="$"+attributes[i];
-                    else
-                        resString+=attributes[i];
-                }
-                else{
-                    if(resString.charAt(resString.length()-1)!='$')
-                        resString+="#"+attributes[i];
-                    else
-                        resString+=attributes[i];
-                }
-
+                String colInfo=attributes[i].replace(" ","#");
+                resString+="$"+colInfo;
             }
         }
 

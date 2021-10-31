@@ -1,3 +1,0 @@
-student$roll#int#check(roll>0)$name#char(10)$primary key(roll)$foreign key name references emp(name)
-cust$name#char#check(name>0)$id#roll#check(id<100)$primary key(roll#name)$foreign key name references emp(name)
-poep$name#char#check(name>0)$id#roll#check(id<100)$primary key(roll#name#xxxx)
