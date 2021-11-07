@@ -1,0 +1,2 @@
+emp$id#int$name#char(10)$contact#int#check(contact>10)$primary key(id)
+dept$dept_no#int$dept_name#char(20)$id#int$primary key(dept_no)$foreign key(id) references emp(id)

@@ -54,42 +54,204 @@ public class Main {
         }
     }
 
-    private static void insert_entries(String[] tokens) throws IOException {
-        //insert into emp(name,roll) values("hello",4);
+    private static void insert_entries(String[] tokens,String query) throws IOException {
+        //insert into student values("hello",4);
         String table_name=(tokens[2].split("\\("))[0];
         File table=new File("src\\tables\\"+table_name+".txt");
         FileWriter file=new FileWriter("src\\tables\\"+table_name+".txt",true);
+
         if(table.exists()){
-            Writer output = new BufferedWriter(file);
-            String[] entries=(tokens[3].substring(7,tokens[3].length()-2)).split(",");
-            String resString=entries[0];
-            for(int i=1;i<entries.length;i++){
-                resString+="#"+entries[i];
+            HashMap<String,String> map=new HashMap<>();
+            ArrayList<String> sequenceList=new ArrayList<>();
+            map_cols_with_values(query,tokens,map);    //map values with column names
+            get_sequence_of_cols(sequenceList,table_name);  //get sequence of columns in table
+
+            if(table.length()!=0 && !satisfies_primaryKey_constraint(query,tokens,map,sequenceList)){
+                System.out.println("Primary Key Constraint not followed");
+                return;
             }
+
+            if(!satisfies_foreignKey_constraint(tokens,table_name,map)){
+                System.out.println("Foreign Key Constraint not followed");
+                return;
+            }
+
+            Writer output = new BufferedWriter(file);
+            int startBrack=query.indexOf("(");
+            int endBrack=query.indexOf(")");
+            if(startBrack==-1 || endBrack==-1){
+                System.out.println("brackets are missing");
+                return;
+            }
+            String resString=query.substring(startBrack+1,endBrack).replace(",","#");
             output.write(resString+"\r\n");
             output.close();
-            System.out.println(resString);
-            System.out.println("Values inserted successfully");
+            file.close();
+            System.out.println("Tuple inserted successfully");
         }
         else
             System.out.println("Table does not exist");
+    }
+
+    private static boolean satisfies_foreignKey_constraint(String[] tokens, String tableName, HashMap<String, String> map) throws IOException {
+        String schema=get_schema_of_table(tableName);
+        String[] schemaTokens=schema.split("\\$");
+        ArrayList<String> foreignKey=new ArrayList<>();
+        for(String tk:schemaTokens){        //putting foreign key constraints in a list
+            if(tk.contains("foreign key")){
+                foreignKey.add(tk);
+            }
+        }
+
+        for(String fk:foreignKey){      //traverse through all foreign key constraints of table
+            String fkValue=map.get(fk.substring(fk.indexOf("(")+1,fk.indexOf(")")));
+            int lastOpenBrack=fk.lastIndexOf("(");
+            int lastCloseBrack=fk.lastIndexOf(")");
+            String fkTable=fk.substring(fk.lastIndexOf(" ")+1,lastOpenBrack);
+            String fkTableCol=fk.substring(lastOpenBrack+1,lastCloseBrack);
+            String fkTableSchema=get_schema_of_table(fkTable);
+            String[] fkTableSchemaTokens=fkTableSchema.split("\\$");
+            int fkColPos=0;
+            for(String tk:fkTableSchemaTokens){     //finding position of foreign key column in table using schema of table
+                if(tk.contains("primary key") || tk.contains("foreign key")){
+                    break;
+                }
+                int hashPos=tk.indexOf("#");
+                if(hashPos!=-1){        //this condition will check if the token is a column or table name,since table name will not contain #
+                    String colName=tk.substring(0,hashPos);
+                    if(colName.equals(fkTableCol))
+                        break;
+                    fkColPos++;
+                }
+            }
+
+            File fkTableFile=new File("src\\tables\\"+fkTable+".txt");
+            FileReader fr=new FileReader(fkTableFile);
+            BufferedReader br=new BufferedReader(fr);
+            String line;
+
+            while((line=br.readLine())!=null){      //reading content of foreign key referenced table
+                String[] entries=line.split("#");
+                if(entries[fkColPos].equals(fkValue))       //check if value we want to insert is already present in referenced table
+                    return true;
+            }
+
+        }
+        return false;
+    }
+
+
+    private static boolean satisfies_primaryKey_constraint(String query,String[] tokens,HashMap<String,String> map,ArrayList<String> sequenceList) throws IOException {
+        ArrayList<String> pk=new ArrayList<>();
+        String tableName=tokens[2];
+        String schema=get_schema_of_table(tableName);       //get schema of the table
+        String[] schemaTokens=schema.split("\\$");
+        for(String st:schemaTokens){
+            if(st.contains("primary key")){
+                st=st.substring(0,st.length()-1);
+                String[] primary=((st.split("\\("))[1]).split("#");   //Putting primary keys in a array
+                for(String p:primary)       //adding primary keys to a set
+                    pk.add(p);
+            }
+        }
+        String compositeKey="";
+        for(String p:pk){       //creating string for primary keys
+            compositeKey+=map.get(p)+"#";
+        }
+        compositeKey=compositeKey.substring(0,compositeKey.length()-1);
+        HashMap<Integer,String> indexToPK=new HashMap<>();
+        for(String primaryKey:pk){      //map index of column with primary key
+            for(int i=0;i<sequenceList.size();i++){
+                if(sequenceList.get(i).equals(primaryKey)){
+                    indexToPK.put(i,primaryKey);
+                }
+            }
+        }
+
+        File tableFile=new File("src\\tables\\"+tableName+".txt");
+        FileReader fr=new FileReader(tableFile);
+        BufferedReader br=new BufferedReader(fr);
+        String line;
+        String compositeKey1="";
+        while((line=br.readLine())!=null){      //reading lines in schema file to get schema of required table
+            String[] entries=line.split("#");
+            for(int index:indexToPK.keySet()){
+                compositeKey1+=entries[index]+"#";
+            }
+            compositeKey1=compositeKey1.substring(0,compositeKey1.length()-1);
+            if(compositeKey.equals(compositeKey1))
+                return false;
+        }
+        return true;
+    }
+
+    private static void get_sequence_of_cols(ArrayList<String> sequenceList, String table_name) throws IOException {
+        File schemaFile=new File("src\\db\\schema.txt");
+        FileReader fr=new FileReader(schemaFile);
+        BufferedReader br=new BufferedReader(fr);
+        String line;
+        while((line=br.readLine())!=null){      //reading lines in schema file to get schema of required table
+            String tableName=(line.split("\\$"))[0];
+            if(tableName.equals(table_name))
+                break;
+        }
+        br.close();
+        String[] temp=line.split("\\$");
+        for(String tk:temp){
+            if(!tk.contains("primary key") && !tk.contains("foreign key")){
+                int hashPos=tk.indexOf("#");
+                if(hashPos!=-1){
+                    String colName=tk.substring(0,hashPos);
+                    sequenceList.add(colName);
+                }
+            }
+        }
+    }
+
+    private static void map_cols_with_values(String query, String[] tokens, HashMap<String, String> map) throws IOException {
+        String tableName=tokens[2];       //get table name from query
+        String schema=get_schema_of_table(tableName);       //get schema of the table
+        String[] schemaTokens=schema.split("\\$");
+        ArrayList<String> colsList=new ArrayList<>();
+
+        for(String tk:schemaTokens){        //adding attribute names to column list
+            if(!tk.contains("primary key") && !tk.contains("foreign key")){
+                int hashPos=tk.indexOf("#");
+                if(hashPos!=-1){
+                    String colName=tk.substring(0,hashPos);
+                    colsList.add(colName);
+                }
+            }
+        }
+
+        String cols=query.substring(query.indexOf("(")+1,query.indexOf(")"));   //creating list of values
+        String[] valuesList=cols.split(",");
+
+        for(int i=0;i<colsList.size();i++){     //mapping columns with its values
+            map.put(colsList.get(i),valuesList[i]);
+        }
+    }
+
+    private static String get_schema_of_table(String tableName) throws IOException {
+        File schemaFile=new File("src\\db\\schema.txt");
+        FileReader fr=new FileReader(schemaFile);
+        BufferedReader br=new BufferedReader(fr);
+        String line;
+        while((line=br.readLine())!=null){      //reading lines in schema file to get schema of required table
+            String tn=(line.split("\\$"))[0];
+            if(tn.equals(tableName))
+                break;
+        }
+
+        return line;
     }
 
     private static void describe(String[] tokens) throws IOException{
         //describe student
         File file=new File("src\\tables\\"+tokens[1]+".txt");
         if(file.exists()){
-            File schemaFile=new File("src\\db\\schema.txt");
-            FileReader fr=new FileReader(schemaFile);
-            BufferedReader br=new BufferedReader(fr);
-            String line;
-            while((line=br.readLine())!=null){      //reading lines in schema file to get schema of required table
-                String tableName=(line.split("\\$"))[0];
-                if(tableName.equals(tokens[1]))
-                    break;
-            }
-
-            String[] schemaTokens=line.split("\\$");
+            String schema=get_schema_of_table(tokens[1]);
+            String[] schemaTokens=schema.split("\\$");
             HashSet<String> pkSet=new HashSet<>();
             HashMap<String,String> foreign=new HashMap<>();
 
@@ -221,6 +383,17 @@ public class Main {
         }
     }
 
+    private static void delete_rows(String[] tokens) {
+        //delete from student where roll=10 and name="pratham";
+        File table=new File("src\\tables\\"+tokens[2]+".txt");
+        if(!table.exists()){
+            System.out.println("Table not found!");
+        }
+        else{
+
+        }
+    }
+
     public static void main(String[] args) throws IOException {
         Scanner sc=new Scanner(System.in);
         String query;
@@ -236,12 +409,12 @@ public class Main {
             if(tokens[0].equals("quit")){
                 break;
             }
-            else if(tokens[0].equals("create")){
+            else if(tokens[0].equals("create") && tokens[1].equals("table")){
                 create_table(tokens,query);
             }
             else if(tokens[0].equals("insert")){
                 try {
-                    insert_entries(tokens);
+                    insert_entries(tokens,query);
                 }
                 catch (IOException e) {
                     e.printStackTrace();
@@ -272,9 +445,14 @@ public class Main {
                     e.printStackTrace();
                 }
             }
+            else if(tokens[0].equals("delete") && tokens[1].equals("from")){
+                delete_rows(tokens);
+            }
             else{
                 System.out.println("Invalid Query");
             }
         }
     }
+
+
 }
