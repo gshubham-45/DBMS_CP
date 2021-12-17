@@ -1,11 +1,24 @@
 package com.company;
 
-import javax.print.attribute.SetOfIntegerSyntax;
 import java.io.*;
 import java.util.*;
 
-
 public class Main {
+    private static boolean satisfies_brackets(String query){
+        Stack<Character> st=new Stack<>();
+        for(char c:query.toCharArray()){
+            if(c=='(')
+                st.push(c);
+            else if(c==')'){
+                if(st.isEmpty())
+                    return false;
+                st.pop();
+            }
+        }
+
+        return st.isEmpty();
+    }
+
     private static void create_table(String[] tokens,String query){
         //create table student(roll int check(roll>0),name char(10),PRIMARY KEY(roll,name),FOREIGN KEY(name) REFERENCES emp(name));
         query=query.substring(0,query.length()-1);
@@ -55,7 +68,11 @@ public class Main {
     }
 
     private static void insert_entries(String[] tokens,String query) throws IOException {
-        //insert into student values("hello",4);
+        //insert into student values(1,100,"grep");
+//        if(!satisfies_brackets(query)){
+//            System.out.println("Brackets not satisfied");
+//            return;
+//        }
         String table_name=(tokens[2].split("\\("))[0];
         File table=new File("src\\tables\\"+table_name+".txt");
         FileWriter file=new FileWriter("src\\tables\\"+table_name+".txt",true);
@@ -66,6 +83,9 @@ public class Main {
             map_cols_with_values(query,tokens,map);    //map values with column names
             get_sequence_of_cols(sequenceList,table_name);  //get sequence of columns in table
 
+            //System.out.println(satisfies_primaryKey_constraint(query,tokens,map,sequenceList));
+//            if(true)
+//                return;
             if(table.length()!=0 && !satisfies_primaryKey_constraint(query,tokens,map,sequenceList)){
                 System.out.println("Primary Key Constraint not followed");
                 return;
@@ -135,9 +155,9 @@ public class Main {
                 if(entries[fkColPos].equals(fkValue))       //check if value we want to insert is already present in referenced table
                     return true;
             }
-
+            return false;       //if value is not present in referenced table
         }
-        return false;
+        return true;    //if table does not contain foreign key constraint
     }
 
 
@@ -145,20 +165,23 @@ public class Main {
         ArrayList<String> pk=new ArrayList<>();
         String tableName=tokens[2];
         String schema=get_schema_of_table(tableName);       //get schema of the table
+        //System.out.println(schema);
         String[] schemaTokens=schema.split("\\$");
         for(String st:schemaTokens){
             if(st.contains("primary key")){
                 st=st.substring(0,st.length()-1);
-                String[] primary=((st.split("\\("))[1]).split("#");   //Putting primary keys in a array
+                String[] primary=((st.split("\\("))[1]).split("#");   //Putting primary keys in array
                 for(String p:primary)       //adding primary keys to a set
                     pk.add(p);
             }
         }
         String compositeKey="";
         for(String p:pk){       //creating string for primary keys
+            //System.out.println(p);
             compositeKey+=map.get(p)+"#";
         }
-        compositeKey=compositeKey.substring(0,compositeKey.length()-1);
+        compositeKey=compositeKey.substring(0,compositeKey.length()-1); //removes last added #
+        //System.out.println(compositeKey);
         HashMap<Integer,String> indexToPK=new HashMap<>();
         for(String primaryKey:pk){      //map index of column with primary key
             for(int i=0;i<sequenceList.size();i++){
@@ -172,13 +195,16 @@ public class Main {
         FileReader fr=new FileReader(tableFile);
         BufferedReader br=new BufferedReader(fr);
         String line;
-        String compositeKey1="";
+
         while((line=br.readLine())!=null){      //reading lines in schema file to get schema of required table
+            String compositeKey1="";
             String[] entries=line.split("#");
             for(int index:indexToPK.keySet()){
                 compositeKey1+=entries[index]+"#";
             }
+            //System.out.println(compositeKey1);
             compositeKey1=compositeKey1.substring(0,compositeKey1.length()-1);
+
             if(compositeKey.equals(compositeKey1))
                 return false;
         }
@@ -383,15 +409,130 @@ public class Main {
         }
     }
 
-    private static void delete_rows(String[] tokens) {
-        //delete from student where roll=10 and name="pratham";
+    private static String find_operator(String expression){
+        if(expression.contains("<=")){
+            return "<=";
+        }
+        else if(expression.contains(">=")){
+            return ">=";
+        }
+        else if(expression.contains("!=")){
+            return "!=";
+        }
+        else if(expression.contains("=")){
+            return "=";
+        }
+        else if(expression.contains("<")){
+            return "<";
+        }
+        else{
+            return ">";
+        }
+    }
+
+    private static boolean is_condition_valid(String[] tableContent, int attriIndex, String operator, String operandValue){
+        if(operator.equals("<=") && Integer.parseInt(tableContent[attriIndex])<=Integer.parseInt(operandValue))
+            return true;
+        else if(operator.equals(">=") && Integer.parseInt(tableContent[attriIndex])<=Integer.parseInt(operandValue))
+            return true;
+        else if(operator.equals("!=") && !(tableContent[attriIndex].equals(operandValue)))
+            return true;
+        else if(operator.equals("=") && tableContent[attriIndex].equals(operandValue))
+            return true;
+        else if(operator.equals("<") && Integer.parseInt(tableContent[attriIndex])<Integer.parseInt(operandValue))
+            return true;
+        else if(operator.equals(">") && Integer.parseInt(tableContent[attriIndex])>Integer.parseInt(operandValue))
+            return true;
+        else
+            return false;
+    }
+
+    private static void delete_rows(String query,String[] tokens) throws IOException {
+        //delete from student where roll=1 and name="ram";
         File table=new File("src\\tables\\"+tokens[2]+".txt");
         if(!table.exists()){
             System.out.println("Table not found!");
+            return;
+        }
+
+        ArrayList<String> sequenceList =new ArrayList<>();      //contains sequence of attributes in schema
+        get_sequence_of_cols(sequenceList,tokens[2]);
+        String conditions=query.substring((query.indexOf("where")+6));  //gets the string after where clause
+        File tempFile=new File("src\\tables\\"+"temp.txt");     //creates temp file
+        File tableFile=new File("src\\tables\\"+tokens[2]+".txt");
+        tempFile.createNewFile();       //creating temporary file
+        BufferedReader br = new BufferedReader(new FileReader(tableFile));      //reader for old original file
+        PrintWriter pw = new PrintWriter(new FileWriter(tempFile));     //writer for new temp file
+        String line=null;
+
+        int affectedRowsCount=0;
+        if(conditions.contains("and")){     //if condition contains and
+            String[] constraint=conditions.split(" and ");    //creates an array of all expressions in where condition
+
+            while ((line = br.readLine()) != null) {        //read from table file
+                String[] tableContent=(line.split("#"));    //create array of table fields
+
+                boolean flag=false;
+                for(String expression:constraint){  //take expressions one by one
+                    expression=expression.replaceAll("\\s","");   //remove all spaces from expression
+                    //System.out.println(expression);
+                    String operator=find_operator(expression);  //finding operator
+                    //System.out.println(operator);
+                    String[] operands=expression.split(operator);   //get operands
+
+                    int attriIndex=sequenceList.indexOf(operands[0]);    //get index of attribute in schema
+                    //System.out.println(attriIndex);
+                    if(!is_condition_valid(tableContent,attriIndex,operator,operands[1])) {    //if expression is not true then break
+                        flag = true;
+                        //System.out.println("Inside set flag");
+                        break;
+                    }
+                }
+
+                if (flag) {    //if expression is false then print that line in new file
+                    pw.println(line);
+                    pw.flush();
+                }
+                else
+                    affectedRowsCount++;
+            }
+            System.out.println(affectedRowsCount+" rows affected");
         }
         else{
+            String[] constraint=conditions.split(" or ");
 
+            while ((line = br.readLine()) != null) {        //read from table file
+                String[] tableContent=(line.split("#"));    //create array of table fields
+
+                boolean flag=false;
+                for(String expression:constraint){  //take expressions one by one
+                    expression=expression.replaceAll("\\s","");   //remove all spaces from expression
+                    String operator=find_operator(expression);  //finding operator
+                    String[] operands=expression.split(operator);   //get operands
+
+                    int attriIndex=sequenceList.indexOf(operands[0]);    //get index of attribute in schema
+                    if(is_condition_valid(tableContent,attriIndex,operator,operands[1])) {    //if expression is not true then break
+                        flag = true;
+                        break;
+                    }
+                }
+
+                if (!flag) {    //if expression is false then print that line in new file
+                    pw.println(line);
+                    pw.flush();
+                }
+                else
+                    affectedRowsCount++;
+            }
+            System.out.println(affectedRowsCount+" rows affected");
         }
+
+        pw.close();     //close all files
+        br.close();
+
+        tableFile.delete();     //delete original table file
+        tempFile.renameTo(tableFile);      //rename temp file to table file
+
     }
 
     public static void main(String[] args) throws IOException {
@@ -446,7 +587,7 @@ public class Main {
                 }
             }
             else if(tokens[0].equals("delete") && tokens[1].equals("from")){
-                delete_rows(tokens);
+                delete_rows(query,tokens);
             }
             else{
                 System.out.println("Invalid Query");
