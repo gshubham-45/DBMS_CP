@@ -45,8 +45,11 @@ public class Main {
                     resString += "$" + attributes[i];
             }
             else{
-                String colInfo=attributes[i].replace(" ","#");
-                resString+="$"+colInfo;
+            	String[] attriToken=attributes[i].split(" ",3);
+            	String colInfo="";
+            	for(String at:attriToken)
+            		colInfo+=at+"#";
+                resString+="$"+colInfo.substring(0,colInfo.length()-1);
             }
         }
 
@@ -68,11 +71,8 @@ public class Main {
     }
 
     private static void insert_entries(String[] tokens,String query) throws IOException {
-        //insert into student values(1,100,"grep");
-//        if(!satisfies_brackets(query)){
-//            System.out.println("Brackets not satisfied");
-//            return;
-//        }
+        //insert into student values(90,100,"grep");
+
         String table_name=(tokens[2].split("\\("))[0];
         File table=new File("src\\tables\\"+table_name+".txt");
         FileWriter file=new FileWriter("src\\tables\\"+table_name+".txt",true);
@@ -83,11 +83,8 @@ public class Main {
             map_cols_with_values(query,tokens,map);    //map values with column names
             get_sequence_of_cols(sequenceList,table_name);  //get sequence of columns in table
 
-            //System.out.println(satisfies_primaryKey_constraint(query,tokens,map,sequenceList));
-//            if(true)
-//                return;
             if(table.length()!=0 && !satisfies_primaryKey_constraint(query,tokens,map,sequenceList)){
-                System.out.println("Primary Key Constraint not followed");
+            	System.out.println("Primary Key Constraint not followed");
                 return;
             }
 
@@ -95,6 +92,11 @@ public class Main {
                 System.out.println("Foreign Key Constraint not followed");
                 return;
             }
+
+            if(!satisfies_domain_constraint(table_name,query,sequenceList)){
+                System.out.println("Domain Constraint not followed");
+                return;
+            } 
 
             Writer output = new BufferedWriter(file);
             int startBrack=query.indexOf("(");
@@ -113,7 +115,70 @@ public class Main {
             System.out.println("Table does not exist");
     }
 
-    private static boolean satisfies_foreignKey_constraint(String[] tokens, String tableName, HashMap<String, String> map) throws IOException {
+    private static boolean satisfies_domain_constraint(String table_name,String query, ArrayList<String> sequenceList) throws IOException {
+    	String schema=get_schema_of_table(table_name);
+		String[] schemaTokens=schema.split("\\$");
+		ArrayList<String> constraintList=new ArrayList<>();
+		
+		for(String st:schemaTokens) {
+			if(st.equals(table_name))
+				continue;
+			if(st.contains("primary") || st.contains("foreign"))
+				break;
+			String[] attributeToken=st.split("#");
+			if(attributeToken.length==3)
+				constraintList.add(attributeToken[2].split("[\\(\\)]")[1]);
+		}
+		for(String con:constraintList)
+			System.out.println(con);
+		for(String seq:sequenceList)
+			System.out.println(seq);
+		
+		String[] tableContents=(query.substring(query.indexOf("(")+1, query.length()-1)).split(",");
+		for(String tc:tableContents)
+			System.out.println(tc);
+		
+		for(String constraint:constraintList) {
+			boolean flag=false;
+	        if(constraint.contains("and")){     //if condition contains and
+	            String[] condition=constraint.split(" and ");    //creates an array of all expressions in where condition
+
+                for(String expression:condition){  //take expressions one by one
+                    expression=expression.replaceAll("\\s","");   //remove all spaces from expression
+                    System.out.println(expression);
+                    String operator=find_operator(expression);  //finding operator
+                    System.out.println(operator);
+                    String[] operands=expression.split(operator);   //get operands
+
+                    int attriIndex=sequenceList.indexOf(operands[0]);    //get index of attribute in schema
+                    System.out.println(tableContents[attriIndex]);
+                    if(!is_condition_valid(tableContents,attriIndex,operator,operands[1])) 
+                    	return false;
+                }
+	        }
+	        else{
+	        	String[] condition=constraint.split(" or ");    //creates an array of all expressions in where condition
+
+                for(String expression:condition){  //take expressions one by one
+                    expression=expression.replaceAll("\\s","");   //remove all spaces from expression
+                    System.out.println(expression);
+                    String operator=find_operator(expression);  //finding operator
+                    System.out.println(operator);
+                    String[] operands=expression.split(operator);   //get operands
+
+                    int attriIndex=sequenceList.indexOf(operands[0]);    //get index of attribute in schema
+                    System.out.println(tableContents[attriIndex]);
+                    if(is_condition_valid(tableContents,attriIndex,operator,operands[1])) 
+                    	flag=true;
+                }
+                if(!flag)
+                	return false;
+	        }
+		}
+    	return true;
+	}
+
+	private static boolean satisfies_foreignKey_constraint(String[] tokens, String tableName, HashMap<String, String> map) throws IOException {
         String schema=get_schema_of_table(tableName);
         String[] schemaTokens=schema.split("\\$");
         ArrayList<String> foreignKey=new ArrayList<>();
@@ -178,17 +243,16 @@ public class Main {
         String compositeKey="";
         for(String p:pk){       //creating string for primary keys
             //System.out.println(p);
-            compositeKey+=map.get(p)+"#";
+        	String value=map.get(p);
+        	if(value==null)
+        		return true;
+            compositeKey+=value+"#";
         }
         compositeKey=compositeKey.substring(0,compositeKey.length()-1); //removes last added #
         //System.out.println(compositeKey);
         HashMap<Integer,String> indexToPK=new HashMap<>();
         for(String primaryKey:pk){      //map index of column with primary key
-            for(int i=0;i<sequenceList.size();i++){
-                if(sequenceList.get(i).equals(primaryKey)){
-                    indexToPK.put(i,primaryKey);
-                }
-            }
+        	indexToPK.put(sequenceList.indexOf(primaryKey),primaryKey);
         }
 
         File tableFile=new File("src\\tables\\"+tableName+".txt");
@@ -545,6 +609,12 @@ public class Main {
                 System.out.println("; missing");
                 continue;
             }
+
+            if(!satisfies_brackets(query)){
+                System.out.println("Brackets not satisfied");
+                return;
+            }
+
             query=query.substring(0,query.length()-1);      //removing semi-colon from query
             String[] tokens=query.split(" ");
             if(tokens[0].equals("quit")){
@@ -589,11 +659,19 @@ public class Main {
             else if(tokens[0].equals("delete") && tokens[1].equals("from")){
                 delete_rows(query,tokens);
             }
+            else if(tokens[0].equals("update")){
+                update_rows(query);
+            }
             else{
                 System.out.println("Invalid Query");
             }
         }
     }
+
+	private static void update_rows(String query) {
+		//update student set name="Kapil" where roll=3;
+		
+	}
 
 
 }

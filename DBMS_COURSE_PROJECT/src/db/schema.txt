@@ -1,1 +1,0 @@
-student$roll#int#check(roll>0)$id#int$name#char(10)$primary key(roll#name)

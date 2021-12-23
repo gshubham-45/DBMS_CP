@@ -1,1 +1,3 @@
-student$roll#int#check(roll>0)$id#int$name#char(10)$primary key(roll#name)
+student$roll#int#check(roll>0 and roll<100)$id#int$name#char(10)#check(name="kapil" or name="ram")$primary key(roll#name)
+emp$roll#int#check(roll>0 and roll<100)$name#char(10)#check(name="ram")$primary key(roll)
+book1$book_id#int$title#varchar(10)$author_name#varchar(10)
