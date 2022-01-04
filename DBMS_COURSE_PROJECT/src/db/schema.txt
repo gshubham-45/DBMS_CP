@@ -1,2 +1,1 @@
-student$roll#int#check(roll>0)$name#char(10)$primary key(roll#name)
 emp$id#int#check(id>0)$name#char(10)$address#char(20)$phone#int$primary key(id)

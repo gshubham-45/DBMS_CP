@@ -1,2 +1,5 @@
-student$roll#int#check(roll>0)$name#char(10)$primary key(roll#name)
+student$roll#int#check(roll>0)$name#char(10)$primary key(roll)
 emp$id#int#check(id>0)$name#char(10)$address#char(20)$phone#int$primary key(id)
+student1$roll#int#check(roll>0)$name#char(10)$primary key(roll)$foreign key(name) references emp(name)
+student4$roll#int$name#char(10)$cgpa#decimal
+temp$seqno#int$date#char(20)$id#int$foreign key(id) references emp(id)

@@ -1,6 +1,4 @@
 1#"parag"#"panvel"#123#
 2#"pratham"#"panvel"#123#
 3#"pratham"#"goa"#123#
-4#"pratham"#"nanded"#123#
-4#"pratham"#"kondwa"#123#
 6#"pratham"#"nanded"#123#
